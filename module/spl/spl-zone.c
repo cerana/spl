@@ -1,10 +1,6 @@
 /*****************************************************************************\
  *  Copyright 2015 OmniTI Computer Consulting, Inc. All rights reserved.
- *  Copyright (C) 2007-2010 Lawrence Livermore National Security, LLC.
- *  Copyright (C) 2007 The Regents of the University of California.
- *  Produced at Lawrence Livermore National Laboratory (cf, DISCLAIMER).
- *  Written by Brian Behlendorf <behlendorf1@llnl.gov>.
- *  UCRL-CODE-235197
+ *  Written by Albert Lee <trisk@omniti.com>.
  *
  *  This file is part of the SPL, Solaris Porting Layer.
  *  For details, see <http://zfsonlinux.org/>.
@@ -21,27 +17,42 @@
  *
  *  You should have received a copy of the GNU General Public License along
  *  with the SPL.  If not, see <http://www.gnu.org/licenses/>.
+ *****************************************************************************
+ *  Solaris Porting Layer (SPL) Zones Implementation.
 \*****************************************************************************/
 
-#ifndef _SPL_ZONE_H
-#define _SPL_ZONE_H
+#include <sys/zone.h>
+#include <linux/nsproxy.h>
+#include <linux/user_namespace.h>
+#include <linux/ns_common.h>
 
-#include <sys/byteorder.h>
-#include <linux/atomic.h>
+zoneid_t
+crgetzoneid(const cred_t *cred)
+{
+	struct user_namespace *userns;
 
-#define	GLOBAL_ZONEID	0
+	userns = cred->user_ns;
 
-#define	INGLOBALZONE(p)	\
-    (crgetzoneid(rcu_dereference_protected(p->cred, 1)) == GLOBAL_ZONEID)
+	if (userns == &init_user_ns)
+		return (0);
 
-typedef unsigned long zoneid_t;
-typedef struct cred cred_t;
+	if (userns->ns.inum == 0)
+		return ((zoneid_t)-1);
 
-extern zoneid_t crgetzoneid(const cred_t *cred);
+	return ((zoneid_t) userns->ns.inum);
+}
+EXPORT_SYMBOL(crgetzoneid);
 
-extern int zone_dataset_visible(const char *dataset, int *writable);
+int
+spl_zone_init(void)
+{
+	return (0);
 
-int spl_zone_init(void);
-void spl_zone_fini(void);
+}
 
-#endif /* SPL_ZONE_H */
+void
+spl_zone_fini(void)
+{
+	return;
+}
+
